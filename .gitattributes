@@ -1,0 +1,18 @@
+# Authored and reviewed on several machines: pin LF everywhere so a Windows
+# checkout with core.autocrlf=true cannot rewrite the sources and produce
+# spurious diffs.
+* text=auto eol=lf
+
+*.js text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.csv text eol=lf
+*.txt text eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.exe binary

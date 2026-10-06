@@ -1,0 +1,20 @@
+# dsh-plugin-skill-autoroute bundle patch.
+#
+# One Host row named after the package. The row registers an `agent/pre-step`
+# listener that appends exactly one routing notice to the first step of every
+# received user instruction, plus a `skills/change` listener that invalidates
+# the catalog cache. No client half: the notice rides the normal conversation
+# transcript, so there is nothing to draw in the layout.
+#
+# Optional profile-level config (a later patch layer wins):
+#   - id: dsh-plugin-skill-autoroute
+#     config:
+#       mode: brief          # off | brief | load | router
+#       routerSkills: ['skill-selector', 'skill-router']
+#       topN: 3
+#       minScore: 0.18
+#       loadMinScore: 0.55
+#       locale: zh
+- insert:
+    - id: dsh-plugin-skill-autoroute
+      name: 'dsh-plugin-skill-autoroute'

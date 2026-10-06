@@ -1,0 +1,11 @@
+# Node artifacts and editor/OS noise.
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Job output written by the offline router console (`npm run route`), never by
+# the plugin itself — the runtime only reads the Host skills service.
+build/
+output/

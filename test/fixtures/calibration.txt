@@ -1,0 +1,25 @@
+# Calibration set: one case per line, `<instruction> | <expected name>[,<expected name>...]`.
+# A trailing `|` with no expectations means "the router must stay silent".
+# Expectations are the frontmatter names the live skills service reports.
+把这次的 Wwise 音频评审会议录音做成一份可以继续修改的评审工程，加字幕和候选标记 | premiere-sound-review-editor
+我已经剪好了碎片，请按源出入点拼成连续序列，并从修订字幕里整理术语表 | premiere-stt-revision
+把这场长录屏端到端处理：离线转写、剪出时间线、字幕对轴，最后出 MP4 和可复查报告 | sound-review-video-pipeline
+把知识库这几篇研究笔记做成可溯源的出版包，统一元数据并导出 DOCX 和 PDF | game-audio-knowledge-publisher
+把讲课稿做成 PPTX 课件，套本机母版、占位符、备注都对齐，再做 visual QA | Powerpoint / PPTX
+用这批 Excel 数据出期刊级图表，要求色盲安全、600dpi，TIFF/PNG/PDF 一次导出 | academic-figures
+调研同级车型的转向提示音，给出设计方案和评审要点 | automotive-turn-indicator-chime
+在现有 AE 工程里做 Wwise 衰减与传播原理动画，需要共享配置同步和 5.1 验收 | ae-audio-principle-animation
+把这本书蒸馏成一个可复用的 skill | book-to-skill
+我装了一堆技能，这次到底该用哪个 | skill-router, skill-selector
+帮我找一个能批量处理 Wwise 音频的技能 | skill-finder-cn
+解析这份扫描版 PDF，把表单填好，再和后面的附件合并成一份 | pdf
+用 ComfyUI 搭一条游戏音效批量生成流水线 | comfyui-game-audio-pipeline
+把这场直播剪成声音测评长视频，出成片和报告 | sound-review-video-pipeline, premiere-sound-review-editor
+帮我把这本英文文献翻译成中文，术语要保持一致 | kunlun-fanyi
+把这段视频按镜头切分并抽取关键帧 | video-frames
+给这个新游戏做一套音频品牌声音标识 | game-audio-creator-brand
+把这篇论文讲成带旁白的游戏音频科普视频 | narrated-game-audio-video
+帮我复盘这个月的游戏音频技术情报 | monthly-audio-music-game-audio-tech-literature-intel
+把这份语雀文档导入成知识库笔记 | import-yuque-lakebook
+帮我给朋友挑一份生日礼物 |
+帮我订明天下午三点的大会议室，然后通知产品和技术两个组的人 |

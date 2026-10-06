@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  suites:
+    name: Node suites (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+      # Router unit tests, plugin wiring tests on a fake Host context, the
+      # committed fixture pool, and the offline CLI. The two accuracy suites run
+      # against a real skill pool and skip themselves when it is absent.
+      - name: suites
+        run: npm test
+      - name: offline CLI smoke
+        run: node scripts/route.mjs --root test/fixtures/skills "把评审工程的字幕和候选标记整理好"

@@ -1,0 +1,16 @@
+# Held-out set: written after tuning and run once, unmodified, to report honest accuracy.
+# `instruction | expected[,expected]`, trailing `|` = must stay silent.
+把这节课的音频原理讲成可编辑的动画，在现有 AE 工程里做，最后要 5.1 验收 | ae-audio-principle-animation
+把这段三小时直播全程转写、剪成一条成片，并附一份可复查报告 | sound-review-video-pipeline
+我有一份 Excel，想出一套 600dpi 的色盲安全图表，TIFF 和 PNG 各来一份 | academic-figures
+帮我把这些 Obsidian 笔记整理成对外发布的文档包，要能追溯到原始出处 | game-audio-knowledge-publisher
+把这份扫描件的表单填完，然后跟附件合成一个 PDF | pdf
+这个月的声音相关论文和文章帮我做一次汇总提炼 | monthly-audio-music-game-audio-tech-literature-intel
+帮我把现场录音里的对话转成中文字幕，并对好时间轴 | openai-whisper, kunlun-fanyi
+我想给新角色设计一套声音，先出一版声音品牌方案 | game-audio-creator-brand
+帮我看一下这套插件目录里到底装了哪些东西 | plugin-inventory
+帮我在这个 fork 里同步上游改动，别把本地定制冲掉 | dsh-fork-maintenance-workflow
+把这段视频拆成关键帧图片，方便做分镜参考 | video-frames
+帮我把知识库治理这个月的迭代再走一轮 | shengzhi-governance-monthly-iteration
+帮我约个会议室，顺便订一下下午的咖啡 |
+周末想去附近爬山，帮我看看路线 |

@@ -1,0 +1,64 @@
+{
+  "name": "dsh-plugin-skill-autoroute",
+  "version": "1.0.0",
+  "description": "Automatic skill routing for DeepSeek Harness: every received user instruction gets exactly one routing pass over the live skill catalog, injected as a ranked brief, an auto-loaded SKILL.md body, or a forced router-skill call.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./lib/router": "./lib/router.js",
+    "./lib/autoroute": "./lib/autoroute.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "lib",
+    "scripts",
+    "test",
+    "docs",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "meta": {
+    "title": "技能自动路由",
+    "description": "收到用户指令后自动做一次技能路由：候选简报 / 自动加载技能正文 / 强制调用 skill-router 三种模式。"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "route": "node scripts/route.mjs"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "skill",
+    "skill-router",
+    "routing",
+    "cordis",
+    "agent",
+    "llm"
+  ],
+  "author": {
+    "name": "林冠宇 (SOH4C4759)",
+    "email": "107021339+SOH4C4759@users.noreply.github.com",
+    "url": "https://github.com/SOH4C4759"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/SOH4C4759/dsh-plugin-skill-autoroute#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SOH4C4759/dsh-plugin-skill-autoroute.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SOH4C4759/dsh-plugin-skill-autoroute/issues"
+  }
+}
