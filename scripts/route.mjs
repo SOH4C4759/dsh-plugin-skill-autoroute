@@ -4,9 +4,9 @@
  * Host restart.
  *
  * Usage:
- *   node scripts/route.mjs "<instruction>" [--root <dir>] [--top 3] [--min 0.18]
+ *   node scripts/route.mjs "<instruction>" [--root <dir>] [--candidates 3] [--min 0.28]
  *                                          [--locale zh] [--json] [--notice]
- *   node scripts/route.mjs --batch <file> [--root <dir>] [--top 3]
+ *   node scripts/route.mjs --batch <file> [--root <dir>] [--candidates 3]
  *
  * The skills root defaults to `.agents/skills` under the current directory, or
  * to `SKILL_AUTOROUTE_ROOT` when that variable is set.
@@ -25,12 +25,12 @@ const DEFAULT_ROOT = process.env.SKILL_AUTOROUTE_ROOT ?? '.agents/skills'
 
 /** Parse `--flag value` pairs plus one positional query. */
 function parseArgs(argv) {
-  const options = { root: DEFAULT_ROOT, top: 3, min: undefined, locale: 'zh', json: false, notice: false, batch: undefined, query: undefined }
+  const options = { root: DEFAULT_ROOT, candidates: 3, min: undefined, locale: 'zh', json: false, notice: false, batch: undefined, query: undefined }
   const rest = []
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index]
     if (token === '--root') options.root = argv[++index]
-    else if (token === '--top') options.top = Number(argv[++index])
+    else if (token === '--candidates' || token === '--top') options.candidates = Number(argv[++index])
     else if (token === '--min') options.min = Number(argv[++index])
     else if (token === '--locale') options.locale = argv[++index]
     else if (token === '--batch') options.batch = argv[++index]
@@ -62,7 +62,7 @@ function line(item, position) {
 
 const options = parseArgs(process.argv.slice(2))
 const config = resolveConfig({
-  topN: Number.isFinite(options.top) ? options.top : 3,
+  candidates: Number.isFinite(options.candidates) ? options.candidates : 3,
   locale: options.locale,
   ...(Number.isFinite(options.min) ? { minScore: options.min } : {}),
 })
@@ -107,7 +107,7 @@ const ranked = rank(options.query, catalog, config)
 if (options.json) {
   console.log(JSON.stringify({ catalog: catalog.skills.length, query: options.query, candidates: ranked }, null, 2))
 } else {
-  console.log(`catalog=${catalog.skills.length} minScore=${config.minScore} topN=${config.topN}`)
+  console.log(`catalog=${catalog.skills.length} minScore=${config.minScore} candidates=${config.candidates}`)
   console.log(`query=${options.query}`)
   ranked.forEach((item, index) => console.log(line(item, index + 1)))
   if (ranked.length === 0) console.log('(silent: no candidate reached minScore)')

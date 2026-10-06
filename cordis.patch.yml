@@ -11,8 +11,10 @@
 #     config:
 #       mode: brief          # off | brief | load | router
 #       routerSkills: ['skill-selector', 'skill-router']
-#       topN: 3
-#       minScore: 0.18
+#       candidates: 3        # how many candidates the notice lists (1-25)
+#       catalogLimit: 400    # how many skills one pass may scan (1-20000)
+#       explain: true        # false drops the matched-token lines
+#       minScore: 0.28
 #       loadMinScore: 0.55
 #       locale: zh
 - insert:

@@ -140,11 +140,18 @@ test('an unrelated instruction stays silent instead of naming a weak candidate',
   assert.deepEqual(names('帮我约个附近能开会的地方'), [])
 })
 
-test('ranking is deterministic and honours topN', () => {
+test('ranking is deterministic and honours the candidate cap', () => {
   const first = names('把长录像做成成片并出报告')
   const second = names('把长录像做成成片并出报告')
   assert.deepEqual(first, second)
+  const ranked = rankSkills('把长录像做成成片并出报告', SKILLS, resolveConfig({ candidates: 1 }))
+  assert.equal(ranked.length, 1)
+  // The pre-1.1 name keeps working as an alias.
   assert.equal(rankSkills('把长录像做成成片并出报告', SKILLS, resolveConfig({ topN: 1 })).length, 1)
+  assert.equal(resolveConfig({ candidates: 5 }).candidates, 5)
+  assert.equal(resolveConfig({ candidates: 999 }).candidates, 25)
+  assert.equal(resolveConfig({ catalogLimit: 12000 }).catalogLimit, 12000)
+  assert.equal(resolveConfig({ maxCandidates: 10 }).catalogLimit, 10)
 })
 
 test('configured pins move an existing candidate to the front', () => {
@@ -164,6 +171,12 @@ test('notices carry producer tags, a bounded summary and the winning name', () =
   assert.equal(brief.source.form, 'notice')
   assert.equal(brief.source.summary.length <= 120, true)
   assert.equal(brief.text.includes('skill(name="skill-router")'), true)
+  assert.equal(brief.text.includes('命中：'), true)
+
+  const lean = renderBrief({ locale: 'zh', ranked, total: SKILLS.length, config: resolveConfig({ explain: false }) })
+  assert.equal(lean.text.includes('命中：'), false)
+  assert.equal(lean.text.includes('skill-router'), true, 'the shortlist survives without the evidence lines')
+  assert.equal(lean.text.length < brief.text.length, true)
 
   const router = renderRouterDirective({ locale: 'zh', routerSkill: 'skill-router' })
   assert.equal(router.source.form, 'instructions')
@@ -177,7 +190,9 @@ test('notices carry producer tags, a bounded summary and the winning name', () =
 test('config coercion never throws and always yields a usable shape', () => {
   const config = resolveConfig({
     mode: 'nonsense',
-    topN: 999,
+    candidates: 999,
+    catalogLimit: -5,
+    explain: 'yes',
     minScore: 'x',
     loadMinScore: -3,
     locale: 'fr',
@@ -187,7 +202,10 @@ test('config coercion never throws and always yields a usable shape', () => {
     maxBodyChars: 10,
   })
   assert.equal(config.mode, 'brief')
-  assert.equal(config.topN, 10)
+  assert.equal(config.candidates, 25)
+  assert.equal(config.catalogLimit, 1)
+  assert.equal(config.explain, true)
+  assert.equal(resolveConfig({ explain: false }).explain, false)
   assert.equal(config.minScore, resolveConfig({}).minScore)
   assert.equal(config.loadMinScore, 0)
   assert.equal(config.locale, 'zh')
@@ -201,6 +219,10 @@ test('config coercion never throws and always yields a usable shape', () => {
   assert.equal(resolveConfig(undefined).enabled, true)
   assert.equal(resolveConfig({ enabled: false }).enabled, false)
   assert.equal(Object.isFrozen(config), true)
+  // Every documented key is present and nothing legacy leaks into the shape.
+  assert.deepEqual(Object.keys(resolveConfig({ topN: 4, maxCandidates: 9 })).includes('topN'), false)
+  assert.equal(resolveConfig({ topN: 4 }).candidates, 4)
+  assert.equal(resolveConfig({ maxCandidates: 9 }).catalogLimit, 9)
 })
 
 test('catalog building ignores nameless entries and is reusable', () => {

@@ -261,3 +261,58 @@ test('the structural message fallback matches the canonical helper contract', ()
   assert.equal(Object.isFrozen(message.content), true)
   assert.equal(message.content[0].text, 'x')
 })
+
+test('a skill the model may not invoke is never named', async () => {
+  // The only strong candidate is user-only: naming it would send the model to a
+  // `skill` call the Host refuses, so the pass must go silent instead.
+  const { ctx, listeners } = createCtx({
+    skills: [
+      {
+        name: 'premiere-sound-review-editor',
+        description: 'Build long-form game-sound-review projects with captions and candidate markers.',
+        path: 'F:/skills/premiere-sound-review-editor',
+        invocation: { modelInvocable: false, userInvocable: true },
+      },
+      { name: 'weather', description: 'Look up the weather forecast for a place.', path: 'F:/skills/weather' },
+    ],
+  })
+  apply(ctx)
+  const out = await runStep(listeners, payload(1, 'm1', '把评审工程的字幕和候选标记整理好'), {
+    kind: 'enter',
+    messages: [userMessage('m1', '把评审工程的字幕和候选标记整理好')],
+  })
+  assert.equal(out.messages.length, 1)
+
+  // With the same skill model-invocable, the identical step does route.
+  const allowed = createCtx({
+    skills: [
+      {
+        name: 'premiere-sound-review-editor',
+        description: 'Build long-form game-sound-review projects with captions and candidate markers.',
+        path: 'F:/skills/premiere-sound-review-editor',
+        invocation: { modelInvocable: true, userInvocable: true },
+      },
+      { name: 'weather', description: 'Look up the weather forecast for a place.', path: 'F:/skills/weather' },
+    ],
+  })
+  apply(allowed.ctx)
+  const routed = await runStep(allowed.listeners, payload(1, 'm1', '把评审工程的字幕和候选标记整理好'), {
+    kind: 'enter',
+    messages: [userMessage('m1', '把评审工程的字幕和候选标记整理好')],
+  })
+  assert.equal(routed.messages.length, 2)
+  assert.equal(routed.messages[1].content[0].text.includes('premiere-sound-review-editor'), true)
+})
+
+test('the candidate cap and the lean brief are configurable end to end', async () => {
+  const { ctx, listeners } = createCtx()
+  apply(ctx, { candidates: 1, explain: false })
+  const out = await runStep(listeners, payload(1, 'm1', '把评审工程的字幕和候选标记整理好'), {
+    kind: 'enter',
+    messages: [userMessage('m1', '把评审工程的字幕和候选标记整理好')],
+  })
+  const text = out.messages[1].content[0].text
+  assert.equal(/^1\. /mu.test(text), true)
+  assert.equal(/^2\. /mu.test(text), false, 'candidates: 1 must cap the shortlist')
+  assert.equal(text.includes('命中：'), false, 'explain: false must drop the evidence lines')
+})

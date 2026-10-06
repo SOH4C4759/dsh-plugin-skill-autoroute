@@ -127,3 +127,21 @@ node <probe> "<DSH_HOME>\sessions\<workspace-key>\<child-session-id>\session.v4.
 | 插件源码（通知文案插 `HMR-PROBE`） | 改文件 / 改文件 + toggle | 两次探测都读不到标记 | 源码改动需**重启 DSH**；toggle 只重跑 `apply()`，模块仍在缓存 |
 
 所有临时改动均已还原：`HMR-PROBE` 标记已移除，profile patch 末尾恢复为 `- id: dsh-plugin-skill-autoroute` / `disabled: false`（实测还原后通知恢复 3 个候选），源码在还原后 `node --test` 仍 30/30 通过。
+
+## 8. v1.1.0：候选上限可配置 + 三项顺手修（2026-10-07）
+
+用户反馈「候选上限需要可配置」，同时允许自由优化，于是本轮改动：
+
+| 改动 | 之前 | 现在 |
+|---|---|---|
+| 简报里的候选条数 | `topN`，上限 10 | **`candidates`，1–25**；`topN` 作为旧名仍接受 |
+| 一次路由扫描的技能数 | `maxCandidates`，上限 5000 | **`catalogLimit`，1–20000**；`maxCandidates` 作为旧名仍接受 |
+| 简报体积 | 固定带「命中：」证据行 | **`explain: false`** 去掉证据行（同一候选表，更省 token） |
+| 候选资格 | 目录里所有技能 | **只取 `invocation.modelInvocable !== false`** 的技能——不能再推荐一个 `skill` 工具会拒绝的技能 |
+| 组合诊断 | 无 | 挂载时若组合里没注册 `skill` 工具，打一条 warning（只记日志，不阻断） |
+| 挂载日志 | `armed (mode=…, topN=…)` | `armed (mode=…, candidates=…, catalogLimit=…, …)` |
+
+证据：
+- `node --test "test/*.test.mjs"` → **33/33 通过**（新增：候选上限与旧名别名、`catalogLimit` 边界、`explain` 文案契约、不可调用技能必须沉默、`candidates: 1` + `explain: false` 端到端）。
+- 旧名兼容在测试里固定：`resolveConfig({ topN: 4 }).candidates === 4`、`resolveConfig({ maxCandidates: 9 }).catalogLimit === 9`，且解析结果里**不再出现** `topN`/`maxCandidates` 字段。
+- **运行中的 Host 仍是 1.0.0 代码**：本轮改的是源码，按 §7 的实测结论需要**重启一次 DSH** 才能用上新配置键；在那之前 patch 里写 `candidates` 不会生效（旧代码只认 `topN`）。

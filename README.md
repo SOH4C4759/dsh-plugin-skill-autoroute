@@ -71,7 +71,9 @@
   config:
     mode: brief          # off | brief | load | router
     routerSkills: ['skill-selector', 'skill-router']
-    topN: 3
+    candidates: 3        # 简报里列几个候选（1–25）
+    catalogLimit: 400    # 一次路由最多扫描多少技能
+    explain: true        # false = 去掉「命中词」行，简报更省 token
     minScore: 0.28
     loadMinScore: 0.55
     locale: zh           # zh | en
@@ -83,12 +85,13 @@
 | `enabled` | `true` | 总开关；`false` 时整行不挂任何监听器 |
 | `mode` | `brief` | 见上表 |
 | `routerSkills` | `['skill-router']` | `router` 模式可点名调用的技能，**取第一个已安装的**；单数 `routerSkill: skill-selector` 也接受 |
-| `topN` | `3` | 简报里显示几个候选（1–10） |
+| `candidates` | `3` | **简报里列几个候选（1–25）**；旧名 `topN` 仍接受 |
+| `explain` | `true` | 是否在候选下打「命中：…」证据行；`false` 明显更省 token |
 | `minScore` | `0.28` | 低于此分不进入简报；**没有任何候选达标时保持沉默** |
 | `loadMinScore` | `0.55` | `load` 模式自动加载正文的门槛 |
 | `maxBodyChars` | `6000` | 注入正文的字符上限 |
 | `minChars` | `4` | 太短的指令（「好」「继续」）不路由 |
-| `maxCandidates` | `400` | 一次路由最多扫描的技能数 |
+| `catalogLimit` | `400` | **一次路由最多扫描多少技能（1–20000）**；旧名 `maxCandidates` 仍接受 |
 | `catalogCacheMs` | `30000` | 目录缓存时长（`skills/change` 会立即失效） |
 | `skipSlashCommands` | `true` | 斜杠命令自带行为，不路由 |
 | `triggerSources` | `['user']` | 触发路由的消息来源；加 `'agent-teams'` 可让队员任务也路由 |
@@ -145,7 +148,7 @@ plugin_manager install_bundle → target: link:<path-to-this-repo>
 要求 Node ≥ 22（`node --test` 自带 glob 展开）。技能根默认取当前目录下的 `.agents/skills`，可用 `SKILL_AUTOROUTE_ROOT` 覆盖。
 
 ```powershell
-# 31 个单元/回归测试（真实技能池不存在时，两个准确率套件会自行跳过）
+# 33 个单元/回归测试（真实技能池不存在时，两个准确率套件会自行跳过）
 node --test "test/*.test.mjs"
 
 # 单条指令看排名与将注入的文案
@@ -161,7 +164,8 @@ node scripts/route.mjs --batch test/fixtures/holdout.txt
 
 ### 5.3 上线后怎么确认在工作
 
-- Host 日志：`[skill-autoroute] armed (mode=..., topN=..., ...)`；`debug: true` 时每次决策一条。
+- Host 日志：`[skill-autoroute] armed (mode=..., candidates=..., catalogLimit=..., ...)`；`debug: true` 时每次决策一条。
+- 只在**可被模型调用**的技能里选（`SkillInvocationPolicy.modelInvocable`）；若该组合没有注册 `skill` 工具，挂载时会打一条 warning。
 - 对话记录里出现 role=user、来源 `skill-autoroute` 的一条消息（`form: notice` 或 `instructions`）。
 - `mode: router` 时，模型下一步应当出现一次 `skill(name="skill-router")` 调用。
 
@@ -173,7 +177,7 @@ node scripts/route.mjs --batch test/fixtures/holdout.txt
 
 | 你改了什么 | 生效方式 | 实测证据 |
 |---|---|---|
-| profile patch 里的 `config:`（模式／阈值／词表） | **手改文件不会自动重读**；再用 `plugin_manager set_plugin` 把同一行 `enabled: false → true` 触发一次即可热应用，无需重启 | patch 写 `topN: 1` 后直接跑：通知仍是 3 个候选；toggle 之后：**1 个候选** |
+| profile patch 里的 `config:`（模式／阈值／候选数／词表） | **手改文件不会自动重读**；再用 `plugin_manager set_plugin` 把同一行 `enabled: false → true` 触发一次即可热应用，无需重启 | patch 写 `candidates: 1` 后直接跑：通知仍是 3 个候选；toggle 之后：**1 个候选** |
 | 新增／移除 bundle（安装、卸载） | `install_bundle` / `remove_bundle` **当场热应用**（profile `patchReload: live`） | 安装后第一次路由即出现注入消息，**未重启** |
 | 插件源码（`index.js`、`lib/*.js`） | **必须重启 DSH**（侧边栏一键重启）；toggle 只会重新 `apply()`，Node 模块缓存里仍是旧代码 | 在通知文案里临时插 `HMR-PROBE` 标记 → toggle 前后两次探测都读不到该标记 |
 

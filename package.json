@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-skill-autoroute",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Automatic skill routing for DeepSeek Harness: every received user instruction gets exactly one routing pass over the live skill catalog, injected as a ranked brief, an auto-loaded SKILL.md body, or a forced router-skill call.",
   "type": "module",
   "main": "index.js",

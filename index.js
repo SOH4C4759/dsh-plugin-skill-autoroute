@@ -120,10 +120,23 @@ export function apply(ctx, rawConfig) {
     }
   })
 
+  // Best-effort diagnostic: brief and load modes name skills the model must
+  // load through the `skill` tool, so a composition without that tool turns
+  // every notice into a dead end. Log-only, never a hard failure.
+  try {
+    const tools = typeof ctx.get === 'function' ? ctx.get('tools') : undefined
+    if (tools !== undefined && typeof tools.get === 'function' && tools.get('skill') === undefined) {
+      logger?.warn?.('[skill-autoroute] the "skill" tool is not registered in this composition; notices will name skills the model cannot load')
+    }
+  } catch {
+    /* diagnostics never break mounting */
+  }
+
   logger?.info?.(
-    '[skill-autoroute] armed (mode=%s, topN=%s, minScore=%s, locale=%s)',
+    '[skill-autoroute] armed (mode=%s, candidates=%s, catalogLimit=%s, minScore=%s, locale=%s)',
     config.mode,
-    String(config.topN),
+    String(config.candidates),
+    String(config.catalogLimit),
     String(config.minScore),
     config.locale,
   )
