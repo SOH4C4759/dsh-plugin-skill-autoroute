@@ -1,6 +1,6 @@
 # 发布流程
 
-本仓库的持续构建与发布由两个自包含的 workflow 承担，不依赖任何第三方 action。
+本仓库的持续构建与发布由两个自包含的 workflow 承担，**只用 GitHub 官方 action**（`actions/checkout`、`actions/setup-node`、`actions/upload-artifact`），不引任何社区 action。
 
 | 文件 | 职责 |
 |---|---|

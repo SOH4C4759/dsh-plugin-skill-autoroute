@@ -183,6 +183,10 @@ node scripts/route.mjs --batch test/fixtures/holdout.txt
 
 结论：**调参/换模式 = toggle 即可；改算法/词表代码 = 重启一次。**
 
+### 5.5 发布（维护者）
+
+流程写在 [`RELEASING.md`](RELEASING.md)：CI 每次 push 都会跑契约检查（`scripts/verify-bundle.mjs`，专抓「装得上但什么都不加载」那类缺陷）并构建一次发布包；只有打 `v*` tag（或手动触发 Release workflow，**默认草稿**）才会真正发布 Release 资产。
+
 ## 6. 已知限制
 
 1. **只读全局技能层**：`ctx.skills.list()` 未带 `scope`，因此 agent preset 私有层注册的技能不会进入候选。本机技能都来自 Host 层（`@deepseek-ai/dsh-skill-filesystem` + `@nanmicoder/dsh-skills-hub`），故当前无影响；插件读的是 Host 服务而不是磁盘，所以运行时会看到 49 项（磁盘目录 47 项 + 2 个非文件系统来源）。

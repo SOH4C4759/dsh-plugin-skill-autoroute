@@ -45,9 +45,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 20 is the floor package.json declares, 24 is the runtime the desktop
-        # app actually ships — the two ends of the supported range.
-        node: ['20', '24']
+        # `engines.node` declares >=22 (the `--test` glob needs it) and 24 is the
+        # runtime the desktop app ships: the two ends of the supported range.
+        node: ['22', '24']
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
