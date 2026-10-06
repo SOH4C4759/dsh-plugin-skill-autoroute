@@ -9,3 +9,7 @@ desktop.ini
 # the plugin itself — the runtime only reads the Host skills service.
 build/
 output/
+
+# Release staging directory: `git archive` drops the published zip here, both in
+# CI and when the same steps are rehearsed locally.
+dist/

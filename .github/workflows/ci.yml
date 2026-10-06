@@ -34,3 +34,59 @@ jobs:
         run: npm test
       - name: offline CLI smoke
         run: node scripts/route.mjs --root test/fixtures/skills "把评审工程的字幕和候选标记整理好"
+
+  # The bundle half of CI: continuous build. It builds the exact archive the
+  # release workflow publishes, so a broken package fails on the commit that
+  # introduced it instead of at tag time.
+  bundle:
+    name: Bundle contract (node ${{ matrix.node }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 is the floor package.json declares, 24 is the runtime the desktop
+        # app actually ships — the two ends of the supported range.
+        node: ['20', '24']
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+      - name: bundle contract
+        run: node scripts/verify-bundle.mjs
+
+  package:
+    name: Build the release package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: verify the bundle contract
+        run: node scripts/verify-bundle.mjs
+      - name: build the package
+        run: |
+          set -euo pipefail
+          NAME="$(node -p 'require("./package.json").name')"
+          VERSION="$(node -p 'require("./package.json").version')"
+          mkdir -p dist
+          git archive --format=zip --prefix="${NAME}-${VERSION}/" -o "dist/${NAME}-${VERSION}.zip" "$GITHUB_SHA"
+          (cd dist && sha256sum "${NAME}-${VERSION}.zip" > SHA256SUMS.txt)
+          ls -l dist
+      - name: prove the archive is a complete package
+        run: |
+          set -euo pipefail
+          NAME="$(node -p 'require("./package.json").name')"
+          VERSION="$(node -p 'require("./package.json").version')"
+          STAGE="$(mktemp -d)"
+          unzip -q "dist/${NAME}-${VERSION}.zip" -d "$STAGE"
+          node "$STAGE/${NAME}-${VERSION}/scripts/verify-bundle.mjs" "$STAGE/${NAME}-${VERSION}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.repository.name }}-build
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30

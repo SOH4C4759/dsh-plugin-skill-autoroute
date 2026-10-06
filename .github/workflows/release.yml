@@ -1,0 +1,142 @@
+name: Release
+
+# Continuous release. Pushing a `v*` tag publishes a package built from that
+# exact commit. A manual run (`workflow_dispatch`) does the same from the current
+# branch and derives the tag from package.json, so "publish what is on main"
+# needs no local tag dance — and re-running either one repairs a release instead
+# of creating a second one.
+#
+# The asset is `git archive` of the released commit, which is the only content
+# that is genuinely reproducible here: `node_modules/`, editor scratch and local
+# runtime state are untracked by definition, so nothing has to be excluded by
+# hand and the archive cannot silently carry a machine-specific file.
+#
+# Two gates make a bad release impossible rather than merely unlikely:
+#   1. the tag must equal `v` + package.json version (a tag on the wrong commit
+#      or a forgotten version bump fails loudly instead of publishing drift);
+#   2. the bundle contract is verified against the *unpacked archive*, not the
+#      checkout, so the released bytes are proven installable.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: 'Publish as a draft (invisible to everyone until you publish it)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Package and publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out the released commit
+        uses: actions/checkout@v5
+        with:
+          # `git archive` needs the commit object itself; a grafted shallow tip
+          # is not enough once branch and tag have diverged.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Resolve the release identity
+        id: identity
+        run: |
+          set -euo pipefail
+          NAME="$(node -p 'require("./package.json").name')"
+          VERSION="$(node -p 'require("./package.json").version')"
+          if [ -z "$NAME" ] || [ -z "$VERSION" ]; then
+            echo "::error::package.json must carry both \`name\` and \`version\`"
+            exit 1
+          fi
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Preparing ${NAME} ${VERSION}"
+
+      - name: Verify the bundle contract
+        run: node scripts/verify-bundle.mjs
+
+      - name: Gate the tag against package.json
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ github.ref_name }}
+          EXPECTED: v${{ steps.identity.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "$TAG" != "$EXPECTED" ]; then
+            echo "::error::tag $TAG was pushed, but package.json declares $EXPECTED — bump the version or move the tag"
+            exit 1
+          fi
+          echo "Gate passed: $TAG matches package.json."
+
+      - name: Build the release package
+        env:
+          NAME: ${{ steps.identity.outputs.name }}
+          VERSION: ${{ steps.identity.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          ARCHIVE="dist/${NAME}-${VERSION}.zip"
+          git archive --format=zip --prefix="${NAME}-${VERSION}/" -o "$ARCHIVE" "$GITHUB_SHA"
+          (cd dist && sha256sum "${NAME}-${VERSION}.zip" > SHA256SUMS.txt)
+          ls -l dist
+          cat dist/SHA256SUMS.txt
+
+      - name: Prove the archive is a complete package
+        env:
+          NAME: ${{ steps.identity.outputs.name }}
+          VERSION: ${{ steps.identity.outputs.version }}
+        run: |
+          set -euo pipefail
+          ARCHIVE="dist/${NAME}-${VERSION}.zip"
+          if unzip -l "$ARCHIVE" | grep -qE '(^| )(_?node_modules|\.git)/'; then
+            echo "::error::the archive carries node_modules/ or .git/"
+            exit 1
+          fi
+          STAGE="$(mktemp -d)"
+          unzip -q "$ARCHIVE" -d "$STAGE"
+          # Run the checker against the UNPACKED ASSET: this is the step that
+          # proves the released bytes — not the checkout — are installable.
+          node "$STAGE/${NAME}-${VERSION}/scripts/verify-bundle.mjs" "$STAGE/${NAME}-${VERSION}"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: ${{ steps.identity.outputs.name }}
+          VERSION: ${{ steps.identity.outputs.version }}
+          DRAFT_INPUT: ${{ inputs.draft }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="v${VERSION}"
+            if [ "$DRAFT_INPUT" = "true" ]; then DRAFT="--draft"; else DRAFT=""; fi
+          else
+            TAG="$GITHUB_REF_NAME"
+            DRAFT=""
+          fi
+          echo "Publishing $TAG (draft: ${DRAFT:-no})"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # A re-run must repair the release, never create a second one.
+            gh release upload "$TAG" dist/* --clobber
+          else
+            # `--target` matters only when the tag does not exist yet, which is
+            # exactly the manual case; the API ignores it otherwise.
+            gh release create "$TAG" dist/* \
+              --target "$GITHUB_SHA" \
+              --title "${NAME} ${TAG}" \
+              --generate-notes $DRAFT
+          fi
+          gh release view "$TAG" --json tagName,isDraft,assets \
+            --jq '{tag: .tagName, draft: .isDraft, assets: [.assets[].name]}'
