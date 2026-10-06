@@ -17,7 +17,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # Pinned images, not `-latest`: the moving label emits a runner
+        # migration annotation that leaves a permanent yellow mark on a public
+        # repository, and pinning is the reproducible choice anyway.
+        os: [ubuntu-24.04, windows-2022]
         node: ['22', '24']
     steps:
       - uses: actions/checkout@v5
