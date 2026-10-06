@@ -65,6 +65,39 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Preparing ${NAME} ${VERSION}"
 
+      - name: Refuse to reuse a version that belongs to another commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.identity.outputs.version }}
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
+          # A release for this version can already exist, created from an EARLIER
+          # commit. Re-running would then quietly replace its assets with a build of
+          # a different commit — and publishing it would create the tag at the old
+          # commit, whose own build would overwrite them again. Both steps are
+          # silent, and together they leave a release whose tag and contents
+          # disagree. So this asks first, and fails loudly when the answer is no.
+          #
+          # `gh api` writes its 404 body to STDOUT, so "output is empty" is not how
+          # an absent release is detected — the exit status is.
+          if EXISTING="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.target_commitish' 2>/dev/null)"; then
+            :
+          else
+            echo "No release for ${TAG} yet."
+            exit 0
+          fi
+          EXISTING_SHA="$(git rev-parse --verify --quiet "${EXISTING}^{commit}" || echo '')"
+          if [ -z "$EXISTING_SHA" ]; then
+            echo "::error::release ${TAG} exists and targets '${EXISTING}', which this checkout cannot resolve — inspect that release before reusing this version"
+            exit 1
+          fi
+          if [ "$EXISTING_SHA" != "$GITHUB_SHA" ]; then
+            echo "::error::release ${TAG} was created from ${EXISTING_SHA:0:7}, but this run builds ${GITHUB_SHA:0:7}. Bump the version — overwriting a release that belongs to another commit leaves the tag and its assets disagreeing."
+            exit 1
+          fi
+          echo "Release ${TAG} already belongs to this commit; replacing its assets is safe."
+
       - name: Verify the bundle contract
         run: node scripts/verify-bundle.mjs
 

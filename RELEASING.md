@@ -61,3 +61,13 @@ NAME=$(node -p 'require("./package.json").name'); VERSION=$(node -p 'require("./
 git archive --format=zip --prefix="$NAME-$VERSION/" -o "dist/$NAME-$VERSION.zip" HEAD
 # 解压后再验一次：证明的是「发布出去的那份资产」完整，而不是检出目录完整
 ```
+
+## 一条已经踩过的陷阱：不要「重跑草稿再公开」
+
+公开一个草稿时 GitHub 会**创建 tag**，而本流程的触发条件包含 `push: tags: ['v*']`——于是 tag 又触发一次构建。如果那个 tag 指向的是**更早的提交**，这次构建就会用旧提交重新产出资产并**覆盖**你刚上传的，最终留下一个「tag 与内容不一致」的 release：新的 tgz 配旧的 zip，而 `SHA256SUMS.txt` 只覆盖 zip。
+
+实测发生过（三个仓库同时中招），而且**每一步都是静默的**。所以：
+
+- **要重新出包，请改版本号再发**，不要在同一版本上重跑。
+- `release.yml` 里有一道守卫（`Refuse to reuse a version that belongs to another commit`）：当 `v<version>` 的 release 已存在、且属于另一个提交时，流程**直接失败并提示改版本号**，而不是覆盖。
+- 判断「release 是否存在」必须用 `gh api` 的**退出码**：它在 404 时把错误 JSON 写到 stdout，用「输出为空」判断会误判。
