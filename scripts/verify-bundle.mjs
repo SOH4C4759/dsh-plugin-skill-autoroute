@@ -21,7 +21,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 const ROOT = resolve(process.argv[2] ?? process.cwd())
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
@@ -168,7 +168,13 @@ for (const [source, value] of exportEntries) {
 }
 
 // 4. `files` is the publish allow-list: an entry that does not exist is a typo,
-//    and a real directory missing from it is content the release will not carry.
+//    and a real file missing from it is content the release will not carry.
+//
+//    That second half is the one that bites. A new local module imported by an
+//    entry point is invisible until somebody installs the tarball, at which point
+//    the import fails and the plugin never loads — the checkout works, so nothing
+//    local contradicts it. So the entry points' relative imports are walked and
+//    every one of them must be covered by the allow-list.
 if (manifest.files !== undefined) {
   if (!Array.isArray(manifest.files)) {
     fail('package.json: `files` must be an array')
@@ -183,6 +189,66 @@ if (manifest.files !== undefined) {
   }
 } else {
   warn('package.json: no `files` allow-list; the published package carries every tracked file')
+}
+
+/**
+ * Walk the relative imports of one file, transitively.
+ *
+ * Only static `from '...'` forms are matched: those are what an entry point uses
+ * to reach its own modules, and a dynamic import would be a finding of its own.
+ */
+function relativeImports(file, seen = new Set()) {
+  if (seen.has(file) || !existsSync(file)) return seen
+  seen.add(file)
+  const text = readFileSync(file, 'utf8')
+  // Match the specifier, not the statement. A multi-line `import { … } from '…'`
+  // is common, and an expression trying to span the whole statement also spans
+  // unrelated code between two of them — which produced a false report about a
+  // file nobody imports.
+  const pattern = /\bfrom\s*['"](\.[^'"]+)['"]|\bimport\s*\(\s*['"](\.[^'"]+)['"]/g
+  for (const match of text.matchAll(pattern)) {
+    const specifier = match[1] ?? match[2]
+    if (specifier === undefined) continue
+    const resolved = resolve(dirname(file), specifier)
+    for (const candidate of [resolved, `${resolved}.mjs`, `${resolved}.js`, join(resolved, 'index.mjs')]) {
+      if (existsSync(candidate) && statSync(candidate).isFile()) {
+        relativeImports(candidate, seen)
+        break
+      }
+    }
+  }
+  return seen
+}
+
+/** Whether a workspace-relative path is carried by the `files` allow-list. */
+function isCarried(relativePath, allowList) {
+  if (allowList === null) return true
+  for (const entry of allowList) {
+    const normalized = entry.replace(/\/+$/, '')
+    if (relativePath === normalized || relativePath.startsWith(`${normalized}/`)) return true
+  }
+  return false
+}
+
+if (Array.isArray(manifest.files)) {
+  const allowList = manifest.files.filter((entry) => typeof entry === 'string')
+  const carried = new Set()
+  for (const [source, value] of exportEntries) {
+    if (typeof value !== 'string' || !value.startsWith('./')) continue
+    // Only JavaScript entry points import anything. `exports["./package.json"]` is
+    // an export target too, but it is data — and npm always ships it, listed or not.
+    if (!/\.(mjs|js)$/.test(value)) continue
+    const absolute = join(ROOT, value)
+    if (!existsSync(absolute)) continue
+    for (const file of relativeImports(absolute)) {
+      // `rel`, not `relative`: the latter is the imported path helper.
+      const rel = relative(ROOT, file).split(sep).join('/')
+      if (!isCarried(rel, allowList)) carried.add(rel)
+    }
+  }
+  if (carried.size > 0) {
+    fail(`these files are imported by an entry point but are not in \`files\`, so the published package would fail to load: ${[...carried].join(', ')}`)
+  }
 }
 
 // 5. The browser half is declared in `dsh.client` and delivered by `./client`.

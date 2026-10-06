@@ -74,7 +74,11 @@ jobs:
           VERSION="$(node -p 'require("./package.json").version')"
           mkdir -p dist
           git archive --format=zip --prefix="${NAME}-${VERSION}/" -o "dist/${NAME}-${VERSION}.zip" "$GITHUB_SHA"
-          (cd dist && sha256sum "${NAME}-${VERSION}.zip" > SHA256SUMS.txt)
+          # Two shapes: the zip is the whole tree (readable, diffable), the npm
+          # tarball is the one `dsh plugin add file:<tarball>` installs — which is
+          # what "download and use" has to mean for someone else.
+          npm pack --pack-destination dist >/dev/null
+          (cd dist && sha256sum "${NAME}-${VERSION}.zip" "${NAME}-${VERSION}.tgz" > SHA256SUMS.txt)
           ls -l dist
       - name: prove the archive is a complete package
         run: |
@@ -84,6 +88,21 @@ jobs:
           STAGE="$(mktemp -d)"
           unzip -q "dist/${NAME}-${VERSION}.zip" -d "$STAGE"
           node "$STAGE/${NAME}-${VERSION}/scripts/verify-bundle.mjs" "$STAGE/${NAME}-${VERSION}"
+
+      - name: Prove the tarball is self-contained
+        run: |
+          set -euo pipefail
+          NAME="$(node -p 'require("./package.json").name')"
+          VERSION="$(node -p 'require("./package.json").version')"
+          STAGE="$(mktemp -d)"
+          tar -xzf "dist/${NAME}-${VERSION}.tgz" -C "$STAGE"
+          # `npm pack` carries only the `files` allow-list, so this is the check that
+          # the allow-list is complete: the manifest and the bundle patch must be in
+          # the package, and the package must satisfy its own contract outside the
+          # checkout it was built from.
+          test -f "$STAGE/package/package.json"
+          test -f "$STAGE/package/cordis.patch.yml"
+          node "$STAGE/package/scripts/verify-bundle.mjs" "$STAGE/package"
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ github.event.repository.name }}-build

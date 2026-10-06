@@ -34,7 +34,13 @@ tag 与 `package.json` 的 version 不一致时 workflow **直接失败**，不�
 
 ## 资产内容
 
-`<name>-<version>.zip` + `SHA256SUMS.txt`：
+| 资产 | 用途 |
+|---|---|
+| `<name>-<version>.tgz` | **可安装的那份**：`dsh plugin add file:<tarball>`，不用解压、不需要本地检出 |
+| `<name>-<version>.zip` | 整棵仓库树，给人看 / 审 / 做 diff |
+| `SHA256SUMS.txt` | 上面两个的校验和；用途是「确认你下载的没坏」，不是防篡改 |
+
+`.tgz` 由 `npm pack` 生成，**只带 `package.json` 的 `files` 白名单**；CI 与发布流程都会解包它并跑一次契约检查，所以"白名单漏了一个被 import 的文件"会在推送时就失败，而不是等到别人装上才发现。
 
 - 用 `git archive` 打包**该提交的完整仓库树**，所以 `node_modules/`、`.git/`、编辑器与运行期本机状态天然不在里面——不需要手写排除规则，也不可能混入本机专有文件。
 - 解压后是 `<name>-<version>/` 目录，内容就是一个标准 DSH bundle 包（`package.json` + `cordis.patch.yml` + 入口文件）。本机 profile 用 `link:` 指向本地检出目录安装，解压出来的目录同理。
